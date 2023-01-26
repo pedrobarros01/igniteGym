@@ -7,7 +7,11 @@ import { Input } from "@components/Input";
 import { Button } from "@components/Button";
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system";
+
 const PHOTO_SIZE = 33;
+
+
+
 
 export function Profile(){
     const [photoIsLoading, setPhotoIsLoading] = React.useState(false);
@@ -87,7 +91,7 @@ export function Profile(){
                     />
                 </Center>
                 <VStack px={10} mt={12} mb={9}>
-                    <Heading color="gray.200" fontSize="md" mb={2}>
+                    <Heading color="gray.200" fontSize="md" fontFamily="heading" mb={2}>
                         Alterar senha
                     </Heading>
                     <Input 
