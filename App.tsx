@@ -5,6 +5,7 @@ import { Text, View, StatusBar } from 'react-native';
 import { THEME } from './src/theme';
 import { Routes } from '@routes/index';
 import { Home } from '@screens/Home';
+import { AuthContextProvider } from '@contexts/AuthContext';
 
 
 
@@ -19,7 +20,9 @@ export default function App() {
         translucent
         
         />
-        {fontsLoaded ? <Routes /> : <Loading />}
+        <AuthContextProvider>
+          {fontsLoaded ? <Routes /> : <Loading />}
+        </AuthContextProvider>
     </NativeBaseProvider>
   );
 }
