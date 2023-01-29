@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { UserDTO } from "@dtos/UserDto";
-import { USER_STORAGE } from "./storageConfig";
+import { USER_STORAGE } from "@storage/storageConfig";
 
 
 export async function storageUserSave(user: UserDTO){
