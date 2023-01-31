@@ -1,17 +1,41 @@
 import { AppError } from "@utils/AppError";
 import axios, {AxiosInstance} from "axios";
-import {storageAuthTokenGet} from "@storage/storageAuthToken";
-type SignOut = () => void
+import {storageAuthTokenGet, storageAuthTokenSave} from "@storage/storageAuthToken";
 
+type PromiseType = {
+    resolve: (value?: unknown) => void;
+    reject: (reason?: unknown) => void;
+}
+type RegisterInterceptTokenManagerProps = {
+    signOut: () => void;
+    refreshTokenUpdated: (newToken: string) => void;
+}
 type APIInstanceProps = AxiosInstance & {
-    registerInterceptManager: (signOut: SignOut) => () => void
+    registerInterceptManager: ({}: RegisterInterceptTokenManagerProps) => () => void
 };
+type ProcessQueueParams = {
+    error: Error | null;
+    token: string | null
+}
 
 const api = axios.create({
     baseURL: 'http://localhost:3333'
 }) as APIInstanceProps ;
+let isRefreshing = false;
+let failedQueue: Array<PromiseType> = [];
 
-api.registerInterceptManager = signOut => {
+const processQueue = ({error, token = null}: ProcessQueueParams  ):void => {
+    failedQueue.forEach(request => {
+        if(error){
+            request.reject(error);
+        }else{
+            request.resolve(token);
+        }
+    });
+    failedQueue = [];
+}
+
+api.registerInterceptManager = ({refreshTokenUpdated, signOut}) => {
     const interceptManager = api.interceptors.response.use(response => response, async requestError => {
 
         if(requestError?.response?.status === 401){
@@ -21,6 +45,38 @@ api.registerInterceptManager = signOut => {
                     signOut();
                     return Promise.reject(requestError);
                 }
+                const originalRequest = requestError.config;
+                if(isRefreshing){
+                    return new Promise((resolve, reject) => {
+                        failedQueue.push({resolve, reject});
+                    })
+                    .then(token => {
+                        originalRequest.headers.Authorization = `Bearer ${token}`;
+                        return axios(originalRequest);
+                    })
+                    .catch(error => {
+                        throw error;
+                    })
+                }
+                isRefreshing = true;
+                return new Promise(async (resolve, reject) => {
+                    try{
+                        const {data} = await api.post('/sessions/refresh-token', {token: oldToken});
+                        await storageAuthTokenSave(data.token);
+                        api.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
+                        originalRequest.headers.Authorization = `Bearer ${data.token}`;
+                        refreshTokenUpdated(data.token);
+                        processQueue({error: null, token: data.token});
+                        
+                        resolve(originalRequest);
+                    }catch(error: any){
+                        processQueue({error: error, token: null});
+                        signOut();
+                        reject(error);
+                    }finally{
+                        isRefreshing = false;
+                    }
+                })
 
             }
 
